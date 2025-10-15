@@ -1,0 +1,14 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="16" fill="#3B82F6"/>
+  
+  <!-- Person icon -->
+  <path d="M16 8C18.2091 8 20 9.79086 20 12C20 14.2091 18.2091 16 16 16C13.7909 16 12 14.2091 12 12C12 9.79086 13.7909 8 16 8Z" fill="white"/>
+  
+  <!-- Body -->
+  <path d="M16 18C11.5817 18 8 21.5817 8 26H24C24 21.5817 20.4183 18 16 18Z" fill="white"/>
+  
+  <!-- Briefcase icon overlay -->
+  <path d="M10 14H22C22.5523 14 23 14.4477 23 15V19C23 19.5523 22.5523 20 22 20H10C9.44772 20 9 19.5523 9 19V15C9 14.4477 9.44772 14 10 14Z" fill="#1E40AF" opacity="0.8"/>
+  <path d="M12 12V14H20V12C20 11.4477 19.5523 11 19 11H13C12.4477 11 12 11.4477 12 12Z" fill="#1E40AF" opacity="0.8"/>
+</svg>
