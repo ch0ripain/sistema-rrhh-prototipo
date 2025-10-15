@@ -4,7 +4,7 @@ Un sistema de gestión de recursos humanos desarrollado con React, TypeScript, V
 
 ## 🚀 Características
 
-- **Diseño moderno**: Interfaz elegante con tema claro/oscuro
+- **Diseño moderno**: Interfaz simple con tema claro/oscuro
 - **Responsive**: Optimizado para desktop y mobile
 - **Filtrado avanzado**: Búsqueda de empleados con múltiples criterios
 - **Paginación**: Configurable (5, 10 o todos los empleados)
@@ -184,17 +184,6 @@ El sistema incluye 20 empleados de ejemplo con:
 - **Responsive**: Funciona perfectamente en mobile
 - **Tema adaptativo**: Notificaciones se adaptan al tema
 
-## 🎯 Próximas Mejoras
-
-- [ ] Integración con API real
-- [ ] Autenticación y autorización
-- [ ] Dashboard con gráficos
-- [ ] Exportación de datos
-- [ ] Notificaciones en tiempo real
-- [ ] Búsqueda avanzada con filtros múltiples
-- [ ] Historial de cambios
-- [ ] Validaciones más robustas
-
 ## 🚀 Optimizaciones de Performance y SEO
 
 ### SEO Implementado
@@ -213,29 +202,3 @@ El sistema incluye 20 empleados de ejemplo con:
 - **Font display swap**: Mejor rendimiento de carga de fuentes
 - **Compresión gzip**: Assets comprimidos (~78 kB total)
 - **Accessibility**: Soporte para `prefers-reduced-motion`
-
-### Auditoría Lighthouse
-```bash
-pnpm lighthouse  # Ejecutar auditoría completa
-```
-
-**Métricas evaluadas:**
-- First Contentful Paint (FCP)
-- Largest Contentful Paint (LCP)
-- Cumulative Layout Shift (CLS)
-- Total Blocking Time (TBT)
-
-### Resultados de Build
-```
-dist/index.html                   2.81 kB │ gzip:  0.91 kB
-dist/assets/index-2ee6eaaf.css   28.73 kB │ gzip:  5.24 kB
-dist/assets/ui-98e977a5.js        7.55 kB │ gzip:  2.97 kB
-dist/assets/index-20abffbc.js   122.05 kB │ gzip: 24.96 kB
-dist/assets/vendor-3fe8a36e.js  139.74 kB │ gzip: 44.88 kB
-```
-
-**Total**: ~300 kB (sin comprimir) / **~78 kB** (comprimido)
-
----
-
-Desarrollado con ❤️ usando React + TypeScript + TailwindCSS
