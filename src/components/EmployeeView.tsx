@@ -661,7 +661,7 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode, currentView }) 
             </div>
             <button
               onClick={handleCreateEmployee}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md ${
+              className={`items-center space-x-2 px-4 py-2 rounded-xl transition-all hidden duration-300 shadow-sm hover:shadow-md ${
                 isDarkMode
                   ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white'
                   : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
