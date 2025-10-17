@@ -10,9 +10,10 @@ import EmployeeRecordModal from './EmployeeRecordModal';
 
 interface EmployeeViewProps {
   isDarkMode: boolean;
+  currentView?: string;
 }
 
-const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
+const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode, currentView }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,8 +26,6 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
     correoPersonal: '',
     correoCorporativo: '',
     sector: '',
-    fechaIngreso: '',
-    fechaEgreso: '',
     rol: '',
     cargo: '',
     estado: ''
@@ -65,7 +64,7 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
     apellido: 'Rufino',
     rol: 'Administrador',
     sector: 'Sistemas',
-    fechaIngreso: '2020-01-15'
+    fechaIngreso: '15/01/2020'
   };
 
   useEffect(() => {
@@ -74,6 +73,20 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
     setFilteredEmployees(dummyEmployees);
     updatePagination(dummyEmployees);
   }, []);
+
+  // Navegar a secciones específicas cuando cambie currentView
+  useEffect(() => {
+    if (currentView) {
+      const element = document.getElementById(currentView);
+      if (element) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+    }
+  }, [currentView]);
 
   const updatePagination = (data: Employee[]) => {
     const totalPages = pagination.pageSize === -1 ? 1 : Math.ceil(data.length / pagination.pageSize);
@@ -85,12 +98,32 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
     }));
   };
 
+  // Función helper para convertir fecha argentina a objeto Date
+  const parseArgentineDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    
+    // Formato esperado: dd/mm/yyyy
+    const parts = dateString.split('/');
+    if (parts.length !== 3) return null;
+    
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Los meses en JS van de 0-11
+    const year = parseInt(parts[2], 10);
+    
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    
+    return new Date(year, month, day);
+  };
+
+
   const applyFilters = () => {
     setLoading(true);
     
     // Simular delay de API
     setTimeout(() => {
       let filtered = employees.filter(employee => {
+        const currentStatus = getEmployeeStatus(employee);
+        
         return (
           (!filters.nombre || employee.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) &&
           (!filters.apellido || employee.apellido.toLowerCase().includes(filters.apellido.toLowerCase())) &&
@@ -100,11 +133,9 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
           (!filters.correoPersonal || (employee.correoPersonal && employee.correoPersonal.toLowerCase().includes(filters.correoPersonal.toLowerCase()))) &&
           (!filters.correoCorporativo || (employee.correoInstitucional && employee.correoInstitucional.toLowerCase().includes(filters.correoCorporativo.toLowerCase()))) &&
           (!filters.sector || employee.sector.toLowerCase().includes(filters.sector.toLowerCase())) &&
-          (!filters.fechaIngreso || (employee.fechaIngreso && employee.fechaIngreso.includes(filters.fechaIngreso))) &&
-          (!filters.fechaEgreso || (employee.fechaBaja && employee.fechaBaja.includes(filters.fechaEgreso))) &&
           (!filters.rol || (employee.rol && employee.rol.toLowerCase().includes(filters.rol.toLowerCase()))) &&
           (!filters.cargo || employee.cargo.toLowerCase().includes(filters.cargo.toLowerCase())) &&
-          (!filters.estado || employee.estado === filters.estado)
+          (!filters.estado || currentStatus === filters.estado)
         );
       });
 
@@ -124,8 +155,6 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
       correoPersonal: '',
       correoCorporativo: '',
       sector: '',
-      fechaIngreso: '',
-      fechaEgreso: '',
       rol: '',
       cargo: '',
       estado: ''
@@ -156,8 +185,62 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No registra';
+    
+    // Si ya está en formato argentino, devolverlo tal como está
+    if (dateString.includes('/')) {
+      return dateString;
+    }
+    
+    // Si está en formato ISO o similar, convertir a formato argentino
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR');
+    if (isNaN(date.getTime())) return 'No registra';
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  };
+
+  // Función para determinar si un empleado está actualmente en licencia
+  const isEmployeeOnLeave = (employee: Employee) => {
+    if (!employee.legajo?.licencias || employee.legajo.licencias.length === 0) {
+      return false;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalizar a inicio del día
+
+    return employee.legajo.licencias.some(licencia => {
+      const fechaInicio = parseArgentineDate(licencia.fechaInicio);
+      const fechaFin = parseArgentineDate(licencia.fechaFin);
+      
+      if (!fechaInicio || !fechaFin) return false;
+      
+      fechaInicio.setHours(0, 0, 0, 0);
+      fechaFin.setHours(23, 59, 59, 999); // Incluir todo el día de fin
+
+      return today >= fechaInicio && today <= fechaFin;
+    });
+  };
+
+  // Función para obtener el estado real del empleado (considerando licencias)
+  const getEmployeeStatus = (employee: Employee) => {
+    if (employee.estado === 'Inactivo') {
+      return 'Inactivo';
+    }
+    
+    // Si el estado está marcado como "De licencia" en los datos, respetarlo
+    if (employee.estado === 'De licencia') {
+      return 'De licencia';
+    }
+    
+    // Si no está marcado explícitamente, verificar si está actualmente en licencia
+    if (isEmployeeOnLeave(employee)) {
+      return 'De licencia';
+    }
+    
+    return 'Activo';
   };
 
   const exportToPDF = () => {
@@ -269,7 +352,7 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
           employee.dni,
           employee.sector,
           employee.rol || 'N/A',
-          employee.estado,
+          getEmployeeStatus(employee),
           formatDate(employee.fechaIngreso || '')
         ];
         
@@ -589,330 +672,332 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <div>
-              <label htmlFor="filter-nombre" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Nombre
-              </label>
-              <input
-                id="filter-nombre"
-                name="nombre"
-                type="text"
-                value={filters.nombre}
-                onChange={(e) => setFilters(prev => ({ ...prev, nombre: e.target.value }))}
-                aria-label="Buscar por nombre"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese nombre"
-              />
-            </div>
+          {/* Datos Personales */}
+          <div className="mb-6">
+            <h4 className={`text-md font-semibold mb-4 pb-2 border-b ${
+              isDarkMode ? ' border-gray-600' : ' border-gray-300'
+            }`}>
+              Datos Personales
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="filter-nombre" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Nombre
+                </label>
+                <input
+                  id="filter-nombre"
+                  name="nombre"
+                  type="text"
+                  value={filters.nombre}
+                  onChange={(e) => setFilters(prev => ({ ...prev, nombre: e.target.value }))}
+                  aria-label="Buscar por nombre"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese nombre"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="filter-apellido" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Apellido
-              </label>
-              <input
-                id="filter-apellido"
-                name="apellido"
-                type="text"
-                value={filters.apellido}
-                onChange={(e) => setFilters(prev => ({ ...prev, apellido: e.target.value }))}
-                aria-label="Buscar por apellido"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese apellido"
-              />
-            </div>
+              <div>
+                <label htmlFor="filter-apellido" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Apellido
+                </label>
+                <input
+                  id="filter-apellido"
+                  name="apellido"
+                  type="text"
+                  value={filters.apellido}
+                  onChange={(e) => setFilters(prev => ({ ...prev, apellido: e.target.value }))}
+                  aria-label="Buscar por apellido"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese apellido"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="filter-dni" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                DNI
-              </label>
-              <input
-                id="filter-dni"
-                name="dni"
-                type="text"
-                value={filters.dni}
-                onChange={(e) => setFilters(prev => ({ ...prev, dni: e.target.value }))}
-                aria-label="Buscar por DNI"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese DNI"
-              />
+              <div>
+                <label htmlFor="filter-dni" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  DNI
+                </label>
+                <input
+                  id="filter-dni"
+                  name="dni"
+                  type="text"
+                  value={filters.dni}
+                  onChange={(e) => setFilters(prev => ({ ...prev, dni: e.target.value }))}
+                  aria-label="Buscar por DNI"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese DNI"
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="filter-celular" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                N° Celular
-              </label>
-              <input
-                id="filter-celular"
-                name="celular"
-                type="text"
-                value={filters.celular}
-                onChange={(e) => setFilters(prev => ({ ...prev, celular: e.target.value }))}
-                aria-label="Buscar por número celular"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese celular"
-              />
+          {/* Datos de Contacto */}
+          <div className="mb-6">
+            <h4 className={`text-md font-semibold mb-4 pb-2 border-b ${
+              isDarkMode ? ' border-gray-600' : ' border-gray-300'
+            }`}>
+              Datos de Contacto
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="filter-celular" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  N° Celular
+                </label>
+                <input
+                  id="filter-celular"
+                  name="celular"
+                  type="text"
+                  value={filters.celular}
+                  onChange={(e) => setFilters(prev => ({ ...prev, celular: e.target.value }))}
+                  aria-label="Buscar por número celular"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese celular"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="filter-corporativo" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  N° Corporativo
+                </label>
+                <input
+                  id="filter-corporativo"
+                  name="corporativo"
+                  type="text"
+                  value={filters.corporativo}
+                  onChange={(e) => setFilters(prev => ({ ...prev, corporativo: e.target.value }))}
+                  aria-label="Buscar por número corporativo"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese corporativo"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="filter-correo-personal" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Correo Personal
+                </label>
+                <input
+                  id="filter-correo-personal"
+                  name="correoPersonal"
+                  type="email"
+                  value={filters.correoPersonal}
+                  onChange={(e) => setFilters(prev => ({ ...prev, correoPersonal: e.target.value }))}
+                  aria-label="Buscar por correo personal"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese email personal"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="filter-correo-corporativo" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Correo Corporativo
+                </label>
+                <input
+                  id="filter-correo-corporativo"
+                  name="correoCorporativo"
+                  type="email"
+                  value={filters.correoCorporativo}
+                  onChange={(e) => setFilters(prev => ({ ...prev, correoCorporativo: e.target.value }))}
+                  aria-label="Buscar por correo corporativo"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Ingrese email corporativo"
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="filter-corporativo" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                N° Corporativo
-              </label>
-              <input
-                id="filter-corporativo"
-                name="corporativo"
-                type="text"
-                value={filters.corporativo}
-                onChange={(e) => setFilters(prev => ({ ...prev, corporativo: e.target.value }))}
-                aria-label="Buscar por número corporativo"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese corporativo"
-              />
+          {/* Información Laboral */}
+          <div className="mb-6">
+            <h4 className={`text-md font-semibold mb-4 pb-2 border-b ${
+              isDarkMode ? ' border-gray-600' : ' border-gray-300'
+            }`}>
+              Información Laboral
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="filter-sector" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Sector
+                </label>
+                <select
+                  id="filter-sector"
+                  name="sector"
+                  value={filters.sector}
+                  onChange={(e) => setFilters(prev => ({ ...prev, sector: e.target.value }))}
+                  aria-label="Filtrar por sector"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">Todos los sectores</option>
+                  {sectors.map((sector) => (
+                    <option key={sector} value={sector}>
+                      {sector}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-rol" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Rol
+                </label>
+                <select
+                  id="filter-rol"
+                  name="rol"
+                  value={filters.rol}
+                  onChange={(e) => setFilters(prev => ({ ...prev, rol: e.target.value }))}
+                  aria-label="Filtrar por rol"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">Todos los roles</option>
+                  {roles.map((rol) => (
+                    <option key={rol} value={rol}>
+                      {rol}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="filter-cargo" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Cargo
+                </label>
+                <select
+                  id="filter-cargo"
+                  name="cargo"
+                  value={filters.cargo}
+                  onChange={(e) => setFilters(prev => ({ ...prev, cargo: e.target.value }))}
+                  aria-label="Filtrar por cargo"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">Todos los cargos</option>
+                  {cargos.map((cargo) => (
+                    <option key={cargo} value={cargo}>
+                      {cargo}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="filter-correo-personal" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Correo Personal
-              </label>
-              <input
-                id="filter-correo-personal"
-                name="correoPersonal"
-                type="email"
-                value={filters.correoPersonal}
-                onChange={(e) => setFilters(prev => ({ ...prev, correoPersonal: e.target.value }))}
-                aria-label="Buscar por correo personal"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese email personal"
-              />
-            </div>
+          {/* Estado y Visualización */}
+          <div className="mb-6">
+            <h4 className={`text-md font-semibold mb-4 pb-2 border-b ${
+              isDarkMode ? ' border-gray-600' : ' border-gray-300'
+            }`}>
+              Estado y Visualización
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="filter-estado" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Estado
+                </label>
+                <select
+                  id="filter-estado"
+                  name="estado"
+                  value={filters.estado}
+                  onChange={(e) =>
+                    setFilters(prev => ({
+                      ...prev,
+                      estado: e.target.value as typeof prev.estado
+                    }))
+                  }
+                  aria-label="Filtrar por estado"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">Todos</option>
+                  <option value="Activo">Activo</option>
+                  <option value="De licencia">De licencia</option>
+                  <option value="Inactivo">Inactivo</option>
+                </select>
+              </div>
 
-            <div>
-              <label htmlFor="filter-correo-corporativo" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Correo Corporativo
-              </label>
-              <input
-                id="filter-correo-corporativo"
-                name="correoCorporativo"
-                type="email"
-                value={filters.correoCorporativo}
-                onChange={(e) => setFilters(prev => ({ ...prev, correoCorporativo: e.target.value }))}
-                aria-label="Buscar por correo corporativo"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
-                placeholder="Ingrese email corporativo"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="filter-sector" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Sector
-              </label>
-              <select
-                id="filter-sector"
-                name="sector"
-                value={filters.sector}
-                onChange={(e) => setFilters(prev => ({ ...prev, sector: e.target.value }))}
-                aria-label="Filtrar por sector"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="">Todos los sectores</option>
-                {sectors.map((sector) => (
-                  <option key={sector} value={sector}>
-                    {sector}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="filter-fecha-ingreso" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Fecha de Ingreso
-              </label>
-              <input
-                id="filter-fecha-ingreso"
-                name="fechaIngreso"
-                type="date"
-                value={filters.fechaIngreso}
-                onChange={(e) => setFilters(prev => ({ ...prev, fechaIngreso: e.target.value }))}
-                aria-label="Fecha de ingreso del empleado"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="filter-fecha-egreso" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Fecha de Egreso
-              </label>
-              <input
-                id="filter-fecha-egreso"
-                name="fechaEgreso"
-                type="date"
-                value={filters.fechaEgreso}
-                onChange={(e) => setFilters(prev => ({ ...prev, fechaEgreso: e.target.value }))}
-                aria-label="Fecha de egreso del empleado"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="filter-rol" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Rol
-              </label>
-              <select
-                id="filter-rol"
-                name="rol"
-                value={filters.rol}
-                onChange={(e) => setFilters(prev => ({ ...prev, rol: e.target.value }))}
-                aria-label="Filtrar por rol"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="">Todos los roles</option>
-                {roles.map((rol) => (
-                  <option key={rol} value={rol}>
-                    {rol}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="filter-cargo" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Cargo
-              </label>
-              <select
-                id="filter-cargo"
-                name="cargo"
-                value={filters.cargo}
-                onChange={(e) => setFilters(prev => ({ ...prev, cargo: e.target.value }))}
-                aria-label="Filtrar por cargo"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="">Todos los cargos</option>
-                {cargos.map((cargo) => (
-                  <option key={cargo} value={cargo}>
-                    {cargo}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="filter-estado" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Estado
-              </label>
-              <select
-                id="filter-estado"
-                name="estado"
-                value={filters.estado}
-                onChange={(e) => setFilters(prev => ({ ...prev, estado: e.target.value }))}
-                aria-label="Filtrar por estado"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="">Todos</option>
-                <option value="Activo">Activo</option>
-                <option value="Inactivo">Inactivo</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="filter-page-size" className={`block text-sm font-medium mb-1 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-                Mostrar por página
-              </label>
-              <select
-                id="filter-page-size"
-                name="pageSize"
-                value={pagination.pageSize}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                aria-label="Cantidad de empleados por página"
-                className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value={5}>5 empleados</option>
-                <option value={10}>10 empleados</option>
-                <option value={-1}>Todos</option>
-              </select>
+              <div>
+                <label htmlFor="filter-page-size" className={`block text-sm font-medium mb-1 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Mostrar por página
+                </label>
+                <select
+                  id="filter-page-size"
+                  name="pageSize"
+                  value={pagination.pageSize}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  aria-label="Cantidad de empleados por página"
+                  className={`w-full px-3 py-2 rounded-lg border transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value={5}>5 empleados</option>
+                  <option value={10}>10 empleados</option>
+                  <option value={-1}>Todos</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -1120,11 +1205,13 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ isDarkMode }) => {
                         </td>
                         <td className="py-4 px-4">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            employee.estado === 'Activo'
+                            getEmployeeStatus(employee) === 'Activo'
                               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : getEmployeeStatus(employee) === 'De licencia'
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
                               : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                           }`}>
-                            {employee.estado}
+                            {getEmployeeStatus(employee)}
                           </span>
                         </td>
                         <td className="py-4 px-4">

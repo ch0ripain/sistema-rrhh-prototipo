@@ -19,7 +19,7 @@ export interface Employee {
   fechaBaja?: string;
   rol?: string;
   cargo: string;
-  estado: 'Activo' | 'Inactivo';
+  estado: 'Activo' | 'Inactivo' | 'De licencia';
   
   // Información adicional del legajo
   legajo: EmployeeRecord;
@@ -146,11 +146,9 @@ export interface FilterForm {
   correoPersonal: string;
   correoCorporativo: string;
   sector: string;
-  fechaIngreso: string;
-  fechaEgreso: string;
   rol: string;
   cargo: string;
-  estado: string;
+  estado: 'Activo' | 'Inactivo' | 'De licencia' | '';
 }
 
 export interface PaginationConfig {

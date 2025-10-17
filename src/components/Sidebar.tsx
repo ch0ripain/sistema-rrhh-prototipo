@@ -5,6 +5,8 @@ interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   isDarkMode: boolean;
+  onViewChange: (viewId: string) => void;
+  currentView: string;
 }
 
 interface MenuItem {
@@ -14,7 +16,7 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isDarkMode }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isDarkMode, onViewChange, currentView }) => {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['rrhh', 'consultar-empleado']);
 
   // Prevenir scroll del body cuando la sidebar está abierta en mobile
@@ -77,7 +79,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isDarkMode }) => {
       label: 'Dashboards',
       icon: <BarChart3 size={20} />,
       children: [
-        { id: 'dashboard-general', label: 'Dashboard General', icon: <BarChart3 size={16} /> },
         { id: 'dashboard-rrhh', label: 'Dashboard RRHH', icon: <BarChart3 size={16} /> }
       ]
     },
@@ -175,13 +176,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isDarkMode }) => {
                             if (child.children) {
                               toggleMenu(child.id);
                             } else {
-                              // Scroll a la sección correspondiente
-                              const sectionId = child.id.replace('-', '-');
-                              document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+                              // Cambiar vista
+                              onViewChange(child.id);
                             }
                           }}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors duration-300 text-sm ${
-                            child.id === 'consultar-empleado' 
+                            currentView === child.id
                               ? isDarkMode 
                                 ? 'bg-blue-900 text-blue-200' 
                                 : 'bg-blue-100 text-blue-800'
@@ -210,14 +210,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, isDarkMode }) => {
                               <button
                                 key={subChild.id}
                                 onClick={() => {
-                                  // Scroll a la sección correspondiente
-                                  const sectionId = subChild.id.replace('-', '-');
-                                  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+                                  // Cambiar vista
+                                  onViewChange(subChild.id);
                                 }}
                                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-300 text-sm ${
-                                  isDarkMode 
-                                    ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300' 
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                                  currentView === subChild.id
+                                    ? isDarkMode 
+                                      ? 'bg-blue-900 text-blue-200' 
+                                      : 'bg-blue-100 text-blue-800'
+                                    : isDarkMode 
+                                      ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300' 
+                                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                                 }`}
                               >
                                 <div className="flex items-center space-x-3 min-w-0">

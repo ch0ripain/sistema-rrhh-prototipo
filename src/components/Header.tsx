@@ -10,9 +10,11 @@ interface HeaderProps {
   onLogout: () => void;
   isDarkMode: boolean;
   sidebarOpen: boolean;
+  currentView: string;
+  onViewChange: (viewId: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar, onLogout, isDarkMode, sidebarOpen }) => {
+const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar, onLogout, isDarkMode, sidebarOpen, currentView, onViewChange }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [breadcrumbMenuOpen, setBreadcrumbMenuOpen] = useState(false);
@@ -37,6 +39,62 @@ const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar
     { id: 2, title: 'Recordatorio: Evaluación anual', time: 'Hace 1 día' },
     { id: 3, title: 'Actualización de políticas', time: 'Hace 3 días' }
   ];
+
+  // Función para generar breadcrumb dinámico
+  const getBreadcrumbData = () => {
+    switch (currentView) {
+      case 'dashboard-rrhh':
+        return {
+          main: 'Dashboards',
+          sub: 'Dashboard RRHH',
+          items: [
+            { id: 'dashboard-rrhh', label: 'Dashboard RRHH', icon: <FileText size={16} /> }
+          ]
+        };
+      case 'empleado-registrado':
+        return {
+          main: 'Recursos Humanos',
+          sub: 'Consultar empleado',
+          items: [
+            { id: 'empleado-registrado', label: 'Empleado registrado', icon: <User size={16} /> },
+            { id: 'buscar-empleado', label: 'Buscar empleado', icon: <FileText size={16} /> },
+            { id: 'ver-empleados', label: 'Ver empleados', icon: <Calendar size={16} /> }
+          ]
+        };
+      case 'buscar-empleado':
+        return {
+          main: 'Recursos Humanos',
+          sub: 'Consultar empleado',
+          items: [
+            { id: 'empleado-registrado', label: 'Empleado registrado', icon: <User size={16} /> },
+            { id: 'buscar-empleado', label: 'Buscar empleado', icon: <FileText size={16} /> },
+            { id: 'ver-empleados', label: 'Ver empleados', icon: <Calendar size={16} /> }
+          ]
+        };
+      case 'ver-empleados':
+        return {
+          main: 'Recursos Humanos',
+          sub: 'Consultar empleado',
+          items: [
+            { id: 'empleado-registrado', label: 'Empleado registrado', icon: <User size={16} /> },
+            { id: 'buscar-empleado', label: 'Buscar empleado', icon: <FileText size={16} /> },
+            { id: 'ver-empleados', label: 'Ver empleados', icon: <Calendar size={16} /> }
+          ]
+        };
+      default:
+        return {
+          main: 'Recursos Humanos',
+          sub: 'Consultar empleado',
+          items: [
+            { id: 'empleado-registrado', label: 'Empleado registrado', icon: <User size={16} /> },
+            { id: 'buscar-empleado', label: 'Buscar empleado', icon: <FileText size={16} /> },
+            { id: 'ver-empleados', label: 'Ver empleados', icon: <Calendar size={16} /> }
+          ]
+        };
+    }
+  };
+
+  const breadcrumbData = getBreadcrumbData();
 
   return (
     <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${
@@ -78,7 +136,7 @@ const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar
             <div className={`hidden md:flex items-center space-x-2 text-sm ${
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>
-              <span className="font-medium">Recursos Humanos</span>
+              <span className="font-medium">{breadcrumbData.main}</span>
               <span>{'>'}</span>
               <div ref={breadcrumbRef} className="relative">
                 <button
@@ -89,7 +147,7 @@ const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar
                       : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
                   }`}
                 >
-                  Consultar empleado
+                  {breadcrumbData.sub}
                 </button>
                 
                 {/* Breadcrumb Submenu */}
@@ -102,51 +160,27 @@ const Header: React.FC<HeaderProps> = ({ user, onToggleDarkMode, onToggleSidebar
                     }`}
                   >
                     <div className="py-1">
-                      <button
-                        onClick={() => {
-                          // Scroll a la sección de empleado registrado
-                          document.getElementById('empleado-registrado')?.scrollIntoView({ behavior: 'smooth' });
-                          setBreadcrumbMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center px-4 py-2 text-sm transition-colors duration-300 cursor-pointer rounded-md hover:bg-blue-100 ${
-                          isDarkMode 
-                            ? 'text-gray-300 hover:bg-blue-700' 
-                            : 'text-gray-700 hover:bg-blue-100'
-                        }`}
-                      >
-                        <User size={16} className="mr-3" />
-                        Empleado registrado
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Scroll a la sección de buscar empleado
-                          document.getElementById('buscar-empleado')?.scrollIntoView({ behavior: 'smooth' });
-                          setBreadcrumbMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center px-4 py-2 text-sm transition-colors duration-300 cursor-pointer rounded-md hover:bg-blue-100 ${
-                          isDarkMode 
-                            ? 'text-gray-300 hover:bg-blue-700' 
-                            : 'text-gray-700 hover:bg-blue-100'
-                        }`}
-                      >
-                        <FileText size={16} className="mr-3" />
-                        Buscar empleado
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Scroll a la sección de ver empleados
-                          document.getElementById('ver-empleados')?.scrollIntoView({ behavior: 'smooth' });
-                          setBreadcrumbMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center px-4 py-2 text-sm transition-colors duration-300 cursor-pointer rounded-md hover:bg-blue-100 ${
-                          isDarkMode 
-                            ? 'text-gray-300 hover:bg-blue-700' 
-                            : 'text-gray-700 hover:bg-blue-100'
-                        }`}
-                      >
-                        <Calendar size={16} className="mr-3" />
-                        Ver empleados
-                      </button>
+                      {breadcrumbData.items.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            onViewChange(item.id);
+                            setBreadcrumbMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center px-4 py-2 text-sm transition-colors duration-300 cursor-pointer rounded-md hover:bg-blue-100 ${
+                            currentView === item.id
+                              ? isDarkMode 
+                                ? 'bg-blue-700 text-blue-200' 
+                                : 'bg-blue-100 text-blue-800'
+                              : isDarkMode 
+                                ? 'text-gray-300 hover:bg-blue-700' 
+                                : 'text-gray-700 hover:bg-blue-100'
+                          }`}
+                        >
+                          {item.icon}
+                          <span className="ml-3">{item.label}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -43,6 +43,36 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
+  // Función helper para convertir fecha argentina a ISO
+  const convertArgentineDateToISO = (argentineDate: string): string => {
+    if (!argentineDate) return '';
+    
+    // Formato argentino: dd/mm/yyyy -> Formato ISO: yyyy-mm-dd
+    const parts = argentineDate.split('/');
+    if (parts.length !== 3) return argentineDate;
+    
+    const day = parts[0];
+    const month = parts[1];
+    const year = parts[2];
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  // Función helper para convertir fecha ISO a argentina
+  const convertISODateToArgentine = (isoDate: string): string => {
+    if (!isoDate) return '';
+    
+    // Formato ISO: yyyy-mm-dd -> Formato argentino: dd/mm/yyyy
+    const parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+    
+    return `${day}/${month}/${year}`;
+  };
+
   // Extraer valores únicos para los dropdowns
   const getUniqueValues = (field: keyof Employee) => {
     const values = dummyEmployees
@@ -131,7 +161,13 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   useEffect(() => {
     if (isEdit && employee) {
-      setFormData(employee);
+      // Convertir fechas de formato argentino a ISO para los inputs
+      setFormData({
+        ...employee,
+        fechaNacimiento: convertArgentineDateToISO(employee.fechaNacimiento || ''),
+        fechaIngreso: convertArgentineDateToISO(employee.fechaIngreso || ''),
+        fechaBaja: convertArgentineDateToISO(employee.fechaBaja || '')
+      });
     } else {
       setFormData({
         nombre: '',
@@ -166,7 +202,7 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
     let edad = 0;
     if (formData.fechaNacimiento) {
       const today = new Date();
-      const birth = new Date(formData.fechaNacimiento);
+      const birth = new Date(formData.fechaNacimiento); // formData.fechaNacimiento ya está en formato ISO
       edad = today.getFullYear() - birth.getFullYear();
       const monthDiff = today.getMonth() - birth.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
@@ -186,7 +222,7 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
       nombre: formData.nombre || '',
       apellido: formData.apellido || '',
       dni: formData.dni || '',
-      fechaNacimiento: formData.fechaNacimiento || '',
+      fechaNacimiento: convertISODateToArgentine(formData.fechaNacimiento || ''),
       edad,
       sexo: formData.sexo as 'M' | 'F',
       cuil,
@@ -198,8 +234,8 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
       correoInstitucional: formData.correoInstitucional,
       titulo: formData.titulo,
       sector: formData.sector || '',
-      fechaIngreso: formData.fechaIngreso,
-      fechaBaja: '',
+      fechaIngreso: convertISODateToArgentine(formData.fechaIngreso || ''),
+      fechaBaja: convertISODateToArgentine(formData.fechaBaja || ''),
       rol: formData.rol,
       cargo: formData.cargo || '',
       estado: formData.estado as 'Activo' | 'Inactivo',

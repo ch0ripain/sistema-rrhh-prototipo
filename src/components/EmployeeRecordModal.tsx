@@ -33,8 +33,21 @@ const EmployeeRecordModal: React.FC<EmployeeRecordModalProps> = ({
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No registra';
+    
+    // Si ya está en formato argentino, devolverlo tal como está
+    if (dateString.includes('/')) {
+      return dateString;
+    }
+    
+    // Si está en formato ISO o similar, convertir a formato argentino
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR');
+    if (isNaN(date.getTime())) return 'No registra';
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
   };
 
   const sections = [
